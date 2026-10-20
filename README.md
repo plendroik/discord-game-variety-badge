@@ -27,7 +27,9 @@ Panelde:
 - şu an açık oyunlar ve geri sayımları,
 - tamamlanan oyunlar ve kayıt.
 
-Varsayılan ayarlarla (110 oyun, 5–15 dk, aynı anda 2) yaklaşık 9–10 saat sürer.
+Varsayılan ayarlarla (110 oyun, 5–15 dk, aynı anda 1) yaklaşık 18–19 saat sürer. Kapatıp ertesi gün devam edebilirsin.
+
+**Aynı anda birden fazla oyun:** Discord'un aynı anda açık oyunları Game Variety için ayrı ayrı saydığını doğrulayan bir kaynak yok; Game Time'da süreler toplanıyor mu da belli değil. Bu yüzden varsayılan 1. Denemek istersen birkaç oyunu 2'şerli çalıştırıp rozet ilerlemesinin (1–2 gün gecikebilir) iki oyun birden artıp artmadığına bak.
 
 | Script parametresi | Varsayılan | Açıklama |
 |---|---|---|

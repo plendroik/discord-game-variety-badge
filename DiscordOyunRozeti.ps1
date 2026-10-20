@@ -57,7 +57,8 @@ Add-Type -AssemblyName System.Web.Extensions
 
 $State = @{
     Status         = 'idle'   # idle | running | done
-    Settings       = @{ Count = 110; MinMinutes = 5; MaxMinutes = 15; Concurrent = 2 }
+    # Ayni anda birden fazla oyunun ayri sayildigi dogrulanmadi; varsayilan tek oyun
+    Settings       = @{ Count = 110; MinMinutes = 5; MaxMinutes = 15; Concurrent = 1 }
     Done           = New-Object System.Collections.ArrayList
     DoneIds        = New-Object 'System.Collections.Generic.HashSet[string]'
     Active         = New-Object System.Collections.ArrayList
