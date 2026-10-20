@@ -27,7 +27,9 @@ Panelde:
 - şu an açık oyunlar ve geri sayımları,
 - tamamlanan oyunlar ve kayıt.
 
-Varsayılan ayarlar: hedef 200–250 arası rastgele (ilk çalıştırmada seçilir, panelden değiştirilebilir), oyun başına 46–71 dk, aynı anda 1 oyun. Örneğin 225 oyun ≈ 220 saat ≈ 9 gün kesintisiz demek; kapatıp istediğin zaman kaldığı yerden devam edebilirsin.
+Varsayılan ayarlar: hedef 250 oyun, oyun başına 46–71 dk, aynı anda 1 oyun. Bu ≈ 245 saat ≈ 10 gün kesintisiz demek; kapatıp istediğin zaman kaldığı yerden devam edebilirsin.
+
+Hangi oyunların oynandığı `%LOCALAPPDATA%\DiscordOyunRozeti\progress.json`'da tutulur (oyun id'si, adı, süresi, bitiş zamanı) ve panelde "Tamamlanan oyunlar" listesinde görünür. Aynı oyun asla ikinci kez seçilmez.
 
 **Aynı anda birden fazla oyun:** Discord'un aynı anda açık oyunları Game Variety için ayrı ayrı saydığını doğrulayan bir kaynak yok; Game Time'da süreler toplanıyor mu da belli değil. Bu yüzden varsayılan 1. Denemek istersen birkaç oyunu 2'şerli çalıştırıp rozet ilerlemesinin (1–2 gün gecikebilir) iki oyun birden artıp artmadığına bak.
 
