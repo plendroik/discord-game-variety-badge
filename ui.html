@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oyun Rozeti</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%235865f2'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --panel-2: #f0f1f4;
+    --border: #e1e3e8;
+    --text: #1d1f24;
+    --muted: #6b7080;
+    --accent: #5865f2;
+    --accent-soft: #e6e8fd;
+    --ok: #1f9d55;
+    --ok-soft: #e3f5ea;
+    --warn: #b7791f;
+    --warn-soft: #fbf0dc;
+    --err: #d63c3c;
+    --err-soft: #fbe5e5;
+    --track: #e4e6eb;
+    --shadow: 0 1px 2px rgba(16, 18, 27, .06), 0 2px 8px rgba(16, 18, 27, .04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181c;
+      --panel: #1f2126;
+      --panel-2: #26282e;
+      --border: #2f3239;
+      --text: #e8e9ec;
+      --muted: #969aa6;
+      --accent: #7c86ff;
+      --accent-soft: #2b2f55;
+      --ok: #4cc38a;
+      --ok-soft: #1c3a2b;
+      --warn: #e0a84a;
+      --warn-soft: #3d311b;
+      --err: #f07272;
+      --err-soft: #432425;
+      --track: #30333a;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  h1 { font-size: 20px; font-weight: 650; margin: 0 auto 0 0; letter-spacing: -.01em; }
+  h2 { font-size: 13px; font-weight: 600; margin: 0 0 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+  }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .pill.err { background: var(--err-soft); color: var(--err); border-color: transparent; }
+  .pill.accent { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .pill.running::before { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .span-8 { grid-column: span 8; }
+  .span-4 { grid-column: span 4; }
+  .span-6 { grid-column: span 6; }
+  .span-12 { grid-column: span 12; }
+  @media (max-width: 860px) { .span-8, .span-4, .span-6 { grid-column: span 12; } }
+
+  .banner {
+    display: none; margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
+    background: var(--err-soft); color: var(--err); font-weight: 500;
+  }
+  .banner.show { display: block; }
+
+  .hero { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .big { font-size: 44px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+  .big small { font-size: 20px; color: var(--muted); font-weight: 600; }
+  .bar { height: 8px; background: var(--track); border-radius: 999px; overflow: hidden; margin: 16px 0 18px; }
+  .bar > div { height: 100%; background: var(--accent); border-radius: inherit; transition: width .6s ease; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .stat { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  @media (max-width: 520px) { .stats { grid-template-columns: 1fr 1fr; } }
+
+  .tiers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 18px; }
+  .tier {
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 4px; text-align: center;
+    font-size: 11px; color: var(--muted); background: var(--panel);
+  }
+  .tier b { display: block; font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .tier.got { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+  .tier.got b { color: var(--accent); }
+  .tier.next { border-color: var(--accent); border-style: dashed; }
+  .next-tier { margin-top: 10px; color: var(--muted); font-size: 13px; }
+
+  form { display: grid; gap: 12px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 500; }
+  input {
+    width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text); font: inherit; font-variant-numeric: tabular-nums;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  input:disabled { opacity: .6; }
+  .hint { font-size: 12px; color: var(--muted); margin: -2px 0 0; }
+  .buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  }
+  button:hover:not(:disabled) { filter: brightness(.97); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; flex: 1; }
+  button.danger { color: var(--err); }
+  .small-buttons { display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 12px; }
+  .small-buttons button { padding: 6px 10px; font-size: 12px; font-weight: 500; }
+
+  .games { display: grid; gap: 10px; }
+  .game { background: var(--panel-2); border-radius: 10px; padding: 12px 14px; }
+  .game-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .game-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .game-time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .game-exe { font: 12px Consolas, ui-monospace, monospace; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .game .bar { height: 5px; margin: 8px 0 0; }
+  .game .bar > div { transition: width 1s linear; }
+  .empty { color: var(--muted); padding: 18px 0; text-align: center; }
+
+  .list { max-height: 360px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+  .item { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .item:last-child { border-bottom: 0; }
+  .item .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .m { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .log { font: 12px/1.6 Consolas, ui-monospace, monospace; }
+  .log .item { padding: 4px 0; justify-content: flex-start; }
+  .log .t { color: var(--muted); }
+  .log .ok { color: var(--ok); }
+  .log .warn { color: var(--warn); }
+  .log .error { color: var(--err); }
+  .note { margin-top: 16px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Discord Oyun Rozeti</h1>
+    <span id="discord" class="pill">Discord</span>
+    <span id="status" class="pill">Bağlanıyor…</span>
+  </header>
+
+  <div id="banner" class="banner"></div>
+
+  <div class="grid">
+    <section class="card span-8">
+      <h2><span lang="en">Game Variety</span> ilerlemesi</h2>
+      <div class="hero">
+        <div class="big"><span id="doneCount">0</span> <small>/ <span id="target">0</span> oyun</small></div>
+      </div>
+      <div class="bar"><div id="mainBar" style="width:0%"></div></div>
+      <div class="stats">
+        <div class="stat"><b id="totalTime">0 dk</b><span>Toplam oynama süresi</span></div>
+        <div class="stat"><b id="activeCount">0</b><span>Şu an açık oyun</span></div>
+        <div class="stat"><b id="eta">–</b><span>Tahmini kalan süre</span></div>
+      </div>
+      <div class="tiers" id="tiers"></div>
+      <div class="next-tier" id="nextTier"></div>
+    </section>
+
+    <section class="card span-4">
+      <h2>Ayarlar</h2>
+      <form id="form" onsubmit="return false">
+        <label>Hedef oyun sayısı
+          <input id="count" type="number" min="1" max="1000" required>
+        </label>
+        <div class="row">
+          <label>En az (dk)
+            <input id="minMinutes" type="number" min="1" max="240" required>
+          </label>
+          <label>En çok (dk)
+            <input id="maxMinutes" type="number" min="1" max="240" required>
+          </label>
+        </div>
+        <p class="hint">Her oyun bu aralıkta rastgele bir süre açık kalır.</p>
+        <label>Aynı anda açık oyun
+          <input id="concurrent" type="number" min="1" max="10" required>
+        </label>
+        <div class="buttons">
+          <button id="startBtn" class="primary" type="button">Başlat</button>
+          <button id="stopBtn" type="button">Durdur</button>
+        </div>
+        <div class="small-buttons">
+          <button id="cleanupBtn" type="button" title="Sahte exe klasörünü siler">Dosyaları temizle</button>
+          <button id="resetBtn" type="button" class="danger" title="Tamamlanan oyun kaydını siler">İlerlemeyi sıfırla</button>
+          <button id="quitBtn" type="button" class="danger">Kapat</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card span-12">
+      <h2>Şu an oynanıyor</h2>
+      <div class="games" id="games"></div>
+    </section>
+
+    <section class="card span-6">
+      <h2>Tamamlanan oyunlar</h2>
+      <div class="list" id="doneList"></div>
+    </section>
+
+    <section class="card span-6">
+      <h2>Kayıt</h2>
+      <div class="list log" id="log"></div>
+    </section>
+  </div>
+
+  <p class="note">Bu sayfadaki sayılar scriptin kendi kaydıdır. Discord'daki rozet ilerlemesi biraz gecikmeyle güncellenebilir.</p>
+</main>
+
+<script>
+const TIERS = [
+  [2, "Sampler"], [5, "Dabbler"], [10, "Enthusiast"], [15, "Ranger"], [20, "Explorer"],
+  [30, "Adventurer"], [40, "Voyager"], [60, "Maverick"], [80, "Polymath"], [100, "Universalist"]
+];
+const $ = id => document.getElementById(id);
+const fields = ["count", "minMinutes", "maxMinutes", "concurrent"];
+let state = null;
+let clockSkew = 0;
+let formDirty = false;
+let busy = false;
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function fmtDuration(sec) {
+  sec = Math.max(0, Math.round(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  if (h > 0) return `${h} sa ${m} dk`;
+  return `${m} dk`;
+}
+function fmtClock(sec) {
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+function fmtTime(ms) {
+  return new Date(ms).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Rozet": "1" },
+    body: JSON.stringify(body)
+  };
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function showError(msg) {
+  const b = $("banner");
+  b.textContent = msg || "";
+  b.classList.toggle("show", !!msg);
+}
+
+function render() {
+  if (!state) return;
+  const s = state.settings;
+  const now = Date.now() + clockSkew;
+  const done = state.done.length;
+  const running = state.status === "running";
+
+  // Başlık
+  const st = $("status");
+  const statusText = { idle: "Boşta", running: "Çalışıyor", done: "Tamamlandı" }[state.status] || state.status;
+  st.textContent = statusText;
+  st.className = "pill " + (running ? "accent running" : state.status === "done" ? "ok" : "");
+  const d = $("discord");
+  d.textContent = state.discordRunning ? "Discord açık" : "Discord kapalı";
+  d.className = "pill " + (state.discordRunning ? "ok" : "err");
+
+  // Ayarlar formu
+  if (!formDirty) fields.forEach(f => $(f).value = s[f[0].toUpperCase() + f.slice(1)]);
+  fields.forEach(f => $(f).disabled = running);
+  $("startBtn").disabled = running || busy;
+  $("stopBtn").disabled = !running && state.active.length === 0 || busy;
+  $("cleanupBtn").disabled = running || busy;
+  $("resetBtn").disabled = running || busy;
+
+  // İlerleme
+  $("doneCount").textContent = done;
+  $("target").textContent = s.Count;
+  $("mainBar").style.width = Math.min(100, done / Math.max(1, s.Count) * 100) + "%";
+  const playedSec = state.done.reduce((a, g) => a + g.seconds, 0)
+    + state.active.reduce((a, g) => a + (now - g.start) / 1000, 0);
+  $("totalTime").textContent = fmtDuration(playedSec);
+  $("activeCount").textContent = state.active.length;
+
+  const remaining = Math.max(0, s.Count - done - state.active.length);
+  const avg = (s.MinMinutes + s.MaxMinutes) / 2 * 60 + 2;
+  const activeLeft = state.active.reduce((a, g) => Math.max(a, (g.end - now) / 1000), 0);
+  const etaSec = Math.ceil(remaining / s.Concurrent) * avg + activeLeft;
+  $("eta").textContent = done >= s.Count ? "Bitti" : (running || state.active.length ? "~" + fmtDuration(etaSec) : "–");
+
+  // Rozet seviyeleri
+  const nextIdx = TIERS.findIndex(([n]) => done < n);
+  $("tiers").innerHTML = TIERS.map(([n, name], i) =>
+    `<div class="tier ${done >= n ? "got" : i === nextIdx ? "next" : ""}"><b>${n}</b>${name}</div>`).join("");
+  $("nextTier").textContent = nextIdx === -1
+    ? "Tüm seviyeler tamam: Universalist 🎉"
+    : `Sıradaki seviye: ${TIERS[nextIdx][1]} (${TIERS[nextIdx][0] - done} oyun kaldı)`;
+
+  // Açık oyunlar
+  $("games").innerHTML = state.active.length === 0
+    ? `<div class="empty">${running ? (state.discordRunning ? "Sıradaki oyun başlatılıyor…" : "Discord kapalı, bekleniyor…") : "Şu an açık oyun yok."}</div>`
+    : state.active.map(g => {
+        const total = (g.end - g.start) / 1000, left = (g.end - now) / 1000;
+        const pct = Math.min(100, Math.max(0, (1 - left / total) * 100));
+        return `<div class="game">
+          <div class="game-top"><div class="game-name">${esc(g.name)}</div>
+          <div class="game-time">${fmtClock(left)} kaldı · ${fmtDuration(total)}</div></div>
+          <div class="game-exe">${esc(g.rel)}</div>
+          <div class="bar"><div style="width:${pct}%"></div></div></div>`;
+      }).join("");
+
+  // Tamamlananlar
+  $("doneList").innerHTML = done === 0
+    ? `<div class="empty">Henüz yok.</div>`
+    : state.done.slice().reverse().map(g =>
+        `<div class="item"><span class="n">${esc(g.name)}</span><span class="m">${fmtDuration(g.seconds)}</span></div>`).join("");
+
+  // Kayıt
+  const log = $("log");
+  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+  log.innerHTML = state.log.map(l =>
+    `<div class="item"><span class="t">${fmtTime(l.t)}</span>&nbsp;<span class="${esc(l.level)}">${esc(l.msg)}</span></div>`).join("");
+  if (atBottom) log.scrollTop = log.scrollHeight;
+}
+
+async function poll() {
+  try {
+    state = await api("/api/state");
+    clockSkew = state.now - Date.now();
+    if (!busy) showError(state.error);
+    render();
+  } catch {
+    showError("Sunucuya bağlanılamıyor. Script kapalı olabilir; PowerShell'de tekrar çalıştır.");
+    $("status").textContent = "Bağlantı yok";
+    $("status").className = "pill err";
+  }
+}
+
+async function action(path, body) {
+  busy = true; render();
+  try {
+    state = await api(path, body ?? {});
+    showError(state.error);
+    formDirty = false;
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    busy = false; render();
+  }
+}
+
+fields.forEach(f => $(f).addEventListener("input", () => formDirty = true));
+$("startBtn").onclick = () => {
+  const v = Object.fromEntries(fields.map(f => [f, parseInt($(f).value, 10)]));
+  if (fields.some(f => !Number.isFinite(v[f]))) return showError("Tüm ayarları doldur.");
+  if (v.maxMinutes < v.minMinutes) return showError("En çok süre, en az süreden küçük olamaz.");
+  $("startBtn").textContent = "Başlatılıyor…";
+  action("/api/start", v).finally(() => $("startBtn").textContent = "Başlat");
+};
+$("stopBtn").onclick = () => action("/api/stop");
+$("cleanupBtn").onclick = () => action("/api/cleanup");
+$("resetBtn").onclick = () => {
+  if (confirm("Tamamlanan oyun kaydı silinsin mi? Discord'daki rozet ilerlemen etkilenmez.")) action("/api/reset");
+};
+$("quitBtn").onclick = () => {
+  if (confirm("Açık sahte oyunlar kapatılıp script sonlandırılsın mı?")) action("/api/shutdown");
+};
+
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

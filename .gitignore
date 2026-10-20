@@ -1,2 +1,4 @@
 progress.json
 detectable.json
+settings.json
+.playwright-mcp/
