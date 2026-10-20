@@ -25,10 +25,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ListUrl      = 'https://discord.com/api/v9/applications/detectable'
+# Discord'a erisilemezse: listenin her gun guncellenen kopyasi (github.com/teyd/dgdb)
+$MirrorUrl    = 'https://cdn.jsdelivr.net/gh/teyd/dgdb@main/detectable-win32.json'
 $GamesDir     = Join-Path $WorkDir 'games'
 $RunnerPath   = Join-Path $WorkDir 'runner.exe'
 $ProgressPath = Join-Path $WorkDir 'progress.json'
 $SettingsPath = Join-Path $WorkDir 'settings.json'
+$PlanPath     = Join-Path $WorkDir 'plan.json'
 $CachePath    = Join-Path $WorkDir 'detectable.json'
 $UiPath       = Join-Path $PSScriptRoot 'ui.html'
 
@@ -39,6 +42,9 @@ $GenericNames = @(
     'setup.exe','update.exe','updater.exe','unitycrashhandler64.exe','crashhandler.exe',
     'chrome.exe','firefox.exe','msedge.exe','explorer.exe','cmd.exe','powershell.exe'
 )
+
+# Profilde "Oynuyor" olarak gorunecegi icin mustehcen/rahatsiz edici adli oyunlar secilmez
+$BlockedNamePattern = '(?i)\b(sex|hentai|nsfw|porn|lust|cuckold|genital|negligee|nude|naked|erotic|strip|boob|breeder|hitler|nazi|milf|harem|lewd|futa|yaoi|fetish|bdsm|onlyfans|waifu|succubus|brothel|incest|eros\b|taboo|slave|f\*ck|fuck|whoopass)'
 
 function Stop-AllFakeGames {
     Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($GamesDir, 'OrdinalIgnoreCase') } |
@@ -63,7 +69,11 @@ $State = @{
     DoneIds        = New-Object 'System.Collections.Generic.HashSet[string]'
     Active         = New-Object System.Collections.ArrayList
     Log            = New-Object System.Collections.ArrayList
+    # Oynanacak oyunlarin sabit listesi (tamamlananlar dahil); plan.json'da saklanir
+    Plan           = New-Object System.Collections.ArrayList
+    PlanVersion    = 0
     Candidates     = $null
+    LastTick       = 0
     DiscordRunning = $false
     DiscordWarned  = $false
     Error          = $null
@@ -108,6 +118,88 @@ function Import-Saved {
             }
         }
     }
+    if (Test-Path $PlanPath) {
+        foreach ($item in @(Read-Json $PlanPath)) {
+            [void]$State.Plan.Add((New-PlanItem $item['id'] $item['name'] $item['rel']))
+        }
+        $State.PlanVersion++
+    }
+}
+
+function New-PlanItem($id, $name, $rel) {
+    $rel = [string]$rel
+    $base = ''
+    if ($rel) { $base = (Split-Path $rel -Leaf).ToLowerInvariant() }
+    [pscustomobject]@{ Id = [string]$id; Name = [string]$name; Rel = $rel; Base = $base }
+}
+
+function Save-Plan {
+    $items = @($State.Plan | ForEach-Object { [ordered]@{ id = $_.Id; name = $_.Name; rel = $_.Rel } })
+    [IO.File]::WriteAllText($PlanPath, (ConvertTo-Json -InputObject $items -Depth 3 -Compress))
+    $State.PlanVersion++
+}
+
+# Listeyi hedef sayiya getirir: tamamlananlar hep kalir, bekleyenler korunur
+# (-Reroll ile yenileri secilir), eksik kalirsa rastgele yeni oyun eklenir.
+function Update-Plan([int]$count, [switch]$Reroll) {
+    $old = @{}
+    foreach ($p in $State.Plan) { $old[$p.Id] = $p }
+
+    $items = New-Object System.Collections.ArrayList
+    $ids = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($d in $State.Done) {
+        $rel = ''
+        if ($old.ContainsKey($d.id)) { $rel = $old[$d.id].Rel }
+        if ($ids.Add($d.id)) { [void]$items.Add((New-PlanItem $d.id $d.name $rel)) }
+    }
+    if (-not $Reroll) {
+        foreach ($p in $State.Plan) {
+            if ($items.Count -ge $count) { break }
+            if ($p.Name -match $BlockedNamePattern) { continue }
+            if ($ids.Add($p.Id)) { [void]$items.Add($p) }
+        }
+    }
+    if ($items.Count -lt $count) {
+        if ($null -eq $State.Candidates) {
+            $State.Candidates = Get-Candidates (Get-DetectableList)
+            Write-Log "Uygun oyun sayisi: $($State.Candidates.Count)"
+        } elseif ($State.Candidates.Count -gt 0) {
+            # Ayni oturumda yeniden secimde farkli sira
+            $State.Candidates = [System.Collections.ArrayList]@($State.Candidates | Get-Random -Count $State.Candidates.Count)
+        }
+        # Yeniden secimde eski bekleyenler yenileriyle ayni olmasin
+        $skip = @{}
+        if ($Reroll) { foreach ($p in $State.Plan) { $skip[$p.Id] = $true } }
+        foreach ($c in $State.Candidates) {
+            if ($items.Count -ge $count) { break }
+            if ($skip.ContainsKey($c.Id)) { continue }
+            if ($ids.Add($c.Id)) { [void]$items.Add((New-PlanItem $c.Id $c.Name $c.Rel)) }
+        }
+        if ($items.Count -lt $count) { Write-Log "Listede sadece $($items.Count) uygun oyun var." 'warn' }
+    }
+    $State.Plan = $items
+    Save-Plan
+    Write-Log ("Oyun listesi hazir: {0} oyun ({1} tamamlanmis)" -f $items.Count, $State.Done.Count) 'ok'
+}
+
+# Listedeki bekleyen tek bir oyunu baska rastgele bir oyunla degistirir
+function Set-PlanItemReplaced([string]$id) {
+    $idx = -1
+    for ($i = 0; $i -lt $State.Plan.Count; $i++) { if ($State.Plan[$i].Id -eq $id) { $idx = $i; break } }
+    if ($idx -lt 0) { throw 'Oyun listede yok.' }
+    $old = $State.Plan[$idx]
+    if ($State.DoneIds.Contains($id) -or @($State.Active | Where-Object Id -eq $id).Count -gt 0) {
+        throw 'Tamamlanan ya da oynanan oyun degistirilemez.'
+    }
+    if ($null -eq $State.Candidates) { $State.Candidates = Get-Candidates (Get-DetectableList) }
+    $inPlan = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($p in $State.Plan) { [void]$inPlan.Add($p.Id) }
+    $pool = @($State.Candidates | Where-Object { -not $inPlan.Contains($_.Id) -and -not $State.DoneIds.Contains($_.Id) })
+    if ($pool.Count -eq 0) { throw 'Yerine konacak oyun kalmadi.' }
+    $c = $pool | Get-Random
+    $State.Plan[$idx] = New-PlanItem $c.Id $c.Name $c.Rel
+    Save-Plan
+    Write-Log "Degistirildi: $($old.Name) -> $($c.Name)"
 }
 
 function Get-DetectableList {
@@ -119,21 +211,24 @@ function Get-DetectableList {
         Write-Log 'Oyun listesi onbellekten okunuyor.'
         return Read-Json $CachePath
     }
-    Write-Log "Oyun listesi Discord'dan indiriliyor..."
-    try {
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $wc = New-Object Net.WebClient
-        $wc.Encoding = [Text.Encoding]::UTF8
-        $wc.Headers['User-Agent'] = 'Mozilla/5.0'
-        [IO.File]::WriteAllText($CachePath, $wc.DownloadString($ListUrl))
-    } catch {
-        if (Test-Path $CachePath) {
-            Write-Log 'Liste indirilemedi, eski onbellek kullaniliyor.' 'warn'
-        } else {
-            throw "Liste indirilemedi ($($_.Exception.Message)). WARP/VPN'i acip tekrar dene ya da tarayicidan $ListUrl adresini kaydedip -ListPath ile ver."
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    foreach ($src in @(@{ Url = $ListUrl; Label = "Discord'dan" }, @{ Url = $MirrorUrl; Label = 'yedek kopyadan (teyd/dgdb)' })) {
+        Write-Log "Oyun listesi $($src.Label) indiriliyor..."
+        try {
+            $wc = New-Object Net.WebClient
+            $wc.Encoding = [Text.Encoding]::UTF8
+            $wc.Headers['User-Agent'] = 'Mozilla/5.0'
+            [IO.File]::WriteAllText($CachePath, $wc.DownloadString($src.Url))
+            return Read-Json $CachePath
+        } catch {
+            Write-Log "Indirilemedi: $($_.Exception.Message)" 'warn'
         }
     }
-    return Read-Json $CachePath
+    if (Test-Path $CachePath) {
+        Write-Log 'Eski onbellek kullaniliyor.' 'warn'
+        return Read-Json $CachePath
+    }
+    throw "Liste indirilemedi. Internet baglantini kontrol et ya da tarayicidan $ListUrl adresini kaydedip -ListPath ile ver."
 }
 
 function Get-Candidates($apps) {
@@ -142,7 +237,7 @@ function Get-Candidates($apps) {
         $exe = @($app['executables'] | Where-Object {
             $_['os'] -eq 'win32' -and -not $_['is_launcher'] -and ([string]$_['name']) -like '*.exe'
         }) | Select-Object -First 1
-        if (-not $exe) { continue }
+        if (-not $exe -or ([string]$app['name']) -match $BlockedNamePattern) { continue }
         $rel = ([string]$exe['name']).TrimStart('>').Replace('/', '\').Trim('\')
         if ($rel -match '[:*?"<>|]' -or $rel.Contains('..')) { continue }
         [pscustomobject]@{
@@ -168,11 +263,10 @@ function Get-NextCandidate {
     Get-Process | Where-Object Path | ForEach-Object { [void]$running.Add([IO.Path]::GetFileName($_.Path).ToLowerInvariant()) }
     $activeIds = @($State.Active | ForEach-Object { $_.Id })
 
-    while ($State.Candidates.Count -gt 0) {
-        $c = $State.Candidates[0]
-        $State.Candidates.RemoveAt(0)
-        if ($State.DoneIds.Contains($c.Id) -or $activeIds -contains $c.Id -or $running.Contains($c.Base)) { continue }
-        return $c
+    # Listedeki sirayla ilk bekleyen oyun
+    foreach ($p in $State.Plan) {
+        if (-not $p.Rel -or $State.DoneIds.Contains($p.Id) -or $activeIds -contains $p.Id -or $running.Contains($p.Base)) { continue }
+        return $p
     }
     return $null
 }
@@ -231,6 +325,15 @@ function Stop-FakeGame($a, [string]$reason) {
 
 function Invoke-Tick {
     $now = Get-NowMs
+    # Tick normalde 2 sn'de bir; uzun bosluk = bilgisayar uyudu. Discord da uyudugu icin
+    # o sure oynanmis sayilmasin: acik oyunlarin baslangic/bitisini ileri kaydir.
+    $gap = $now - $State.LastTick
+    if ($State.LastTick -gt 0 -and $gap -gt 60000) {
+        foreach ($a in $State.Active) { $a.Start += $gap; $a.End += $gap }
+        Write-Log ("Bilgisayar ~{0:N0} dk uykudaydi; acik oyunlarin suresi uzatildi." -f ($gap / 60000)) 'warn'
+    }
+    $State.LastTick = $now
+
     foreach ($a in @($State.Active)) {
         if ($now -ge $a.End) { Stop-FakeGame $a 'sure doldu' }
         elseif ($a.Proc.HasExited) { Stop-FakeGame $a 'program kapandi' }
@@ -295,6 +398,15 @@ function Get-StatePayload {
         done           = @($State.Done | ForEach-Object { @{ id = $_.id; name = $_.name; seconds = $_.seconds; at = $_.at } })
         active         = @($State.Active | ForEach-Object { @{ id = $_.Id; name = $_.Name; rel = $_.Rel; start = $_.Start; end = $_.End } })
         log            = @($State.Log)
+        planVersion    = $State.PlanVersion
+        planSize       = $State.Plan.Count
+    }
+}
+
+function Get-PlanPayload {
+    @{
+        version = $State.PlanVersion
+        items   = @($State.Plan | ForEach-Object { @{ id = $_.Id; name = $_.Name; rel = $_.Rel } })
     }
 }
 
@@ -305,6 +417,7 @@ function Invoke-Request($ctx) {
     if ($req.HttpMethod -eq 'GET') {
         if ($path -eq '/') { return Send-Bytes $ctx 200 'text/html; charset=utf-8' ([IO.File]::ReadAllBytes($UiPath)) }
         if ($path -eq '/api/state') { return Send-Json $ctx (Get-StatePayload) }
+        if ($path -eq '/api/plan') { return Send-Json $ctx (Get-PlanPayload) }
         return Send-Json $ctx @{ error = 'Bulunamadi' } 404
     }
 
@@ -335,10 +448,7 @@ function Invoke-Request($ctx) {
             $State.Settings = $s
             [IO.File]::WriteAllText($SettingsPath, (ConvertTo-Json -InputObject $s -Compress))
             try {
-                if ($null -eq $State.Candidates -or $State.Candidates.Count -eq 0) {
-                    $State.Candidates = Get-Candidates (Get-DetectableList)
-                    Write-Log "Uygun oyun sayisi: $($State.Candidates.Count)"
-                }
+                if ($State.Plan.Count -ne $s.Count) { Update-Plan $s.Count }
                 New-Runner
             } catch {
                 $State.Error = $_.Exception.Message
@@ -348,6 +458,23 @@ function Invoke-Request($ctx) {
             $State.Status = 'running'
             Write-Log ("Baslatildi: hedef {0} oyun, {1}-{2} dk, ayni anda {3}" -f $s.Count, $s.MinMinutes, $s.MaxMinutes, $s.Concurrent) 'ok'
             Invoke-Tick
+        }
+        { $_ -eq '/api/plan/create' -or $_ -eq '/api/plan/reroll' } {
+            if ($State.Status -eq 'running') { return Send-Json $ctx @{ error = 'Once durdur.' } 409 }
+            $in = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).DeserializeObject($body)
+            $count = [int]$in['count']
+            if ($count -lt 1 -or $count -gt 1000) { return Send-Json $ctx @{ error = 'Gecersiz oyun sayisi.' } 400 }
+            try { Update-Plan $count -Reroll:($path -eq '/api/plan/reroll') }
+            catch {
+                $State.Error = $_.Exception.Message
+                Write-Log $State.Error 'error'
+                return Send-Json $ctx @{ error = $State.Error } 500
+            }
+        }
+        '/api/plan/replace' {
+            $in = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).DeserializeObject($body)
+            try { Set-PlanItemReplaced ([string]$in['id']) }
+            catch { return Send-Json $ctx @{ error = $_.Exception.Message } 400 }
         }
         '/api/stop' {
             foreach ($a in @($State.Active)) { Stop-FakeGame $a 'durduruldu' }
@@ -361,8 +488,10 @@ function Invoke-Request($ctx) {
         }
         '/api/reset' {
             if ($State.Status -eq 'running') { return Send-Json $ctx @{ error = 'Once durdur.' } 409 }
-            $State.Done.Clear(); $State.DoneIds.Clear(); $State.Candidates = $null; $State.Status = 'idle'
+            $State.Done.Clear(); $State.DoneIds.Clear(); $State.Status = 'idle'
             if (Test-Path $ProgressPath) { Remove-Item -LiteralPath $ProgressPath }
+            # Liste kalir; tum oyunlar tekrar "bekliyor" olur
+            $State.PlanVersion++
             Write-Log 'Ilerleme sifirlandi.'
         }
         '/api/shutdown' {

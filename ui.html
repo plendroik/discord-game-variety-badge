@@ -77,7 +77,31 @@
   .span-4 { grid-column: span 4; }
   .span-6 { grid-column: span 6; }
   .span-12 { grid-column: span 12; }
-  @media (max-width: 860px) { .span-8, .span-4, .span-6 { grid-column: span 12; } }
+  .span-7 { grid-column: span 7; }
+  .span-5 { grid-column: span 5; }
+  @media (max-width: 860px) { .span-8, .span-4, .span-6, .span-7, .span-5 { grid-column: span 12; } }
+
+  .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .card-head h2 { margin: 0; }
+  .count { color: var(--text); font-variant-numeric: tabular-nums; }
+  button.mini { padding: 5px 10px; font-size: 12px; font-weight: 500; }
+  .plan-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .plan-tools input { flex: 1; min-width: 140px; padding: 6px 10px; }
+  .seg { display: inline-flex; background: var(--panel-2); border-radius: 8px; padding: 2px; }
+  .seg button { border: 0; background: transparent; padding: 5px 10px; font-size: 12px; font-weight: 500; color: var(--muted); border-radius: 6px; }
+  .seg button.on { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+  .plan { max-height: 480px; }
+  .plan .item { align-items: center; }
+  .plan .idx { color: var(--muted); font-variant-numeric: tabular-nums; width: 2.6em; flex: none; font-size: 12px; }
+  .plan .info { flex: 1; min-width: 0; }
+  .plan .n { display: block; }
+  .plan .exe { display: block; font: 11px Consolas, ui-monospace, monospace; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: var(--panel-2); color: var(--muted); }
+  .tag.done { background: var(--ok-soft); color: var(--ok); }
+  .swap { padding: 2px 8px; font-size: 11px; font-weight: 500; margin-left: 6px; border-radius: 999px; opacity: 0; }
+  .plan .item:hover .swap, .swap:focus-visible { opacity: 1; }
+  @media (hover: none) { .swap { opacity: 1; } }
+  .tag.active { background: var(--accent-soft); color: var(--accent); }
 
   .banner {
     display: none; margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
@@ -214,12 +238,24 @@
       <div class="games" id="games"></div>
     </section>
 
-    <section class="card span-6">
-      <h2>Tamamlanan oyunlar</h2>
-      <div class="list" id="doneList"></div>
+    <section class="card span-7">
+      <div class="card-head">
+        <h2>Oyun listesi <span id="planCount" class="count"></span></h2>
+        <button id="planBtn" type="button" class="mini">Listeyi oluştur</button>
+      </div>
+      <div class="plan-tools">
+        <div class="seg" id="planFilter">
+          <button type="button" data-f="all" class="on">Tümü</button>
+          <button type="button" data-f="pending">Bekleyen</button>
+          <button type="button" data-f="active">Oynanıyor</button>
+          <button type="button" data-f="done">Tamamlanan</button>
+        </div>
+        <input id="planSearch" type="search" placeholder="Oyun ara…">
+      </div>
+      <div class="list plan" id="planList"></div>
     </section>
 
-    <section class="card span-6">
+    <section class="card span-5">
       <h2>Kayıt</h2>
       <div class="list log" id="log"></div>
     </section>
@@ -236,6 +272,8 @@ const TIERS = [
 const $ = id => document.getElementById(id);
 const fields = ["count", "minMinutes", "maxMinutes", "concurrent"];
 let state = null;
+let plan = { version: -1, items: [] };
+let planFilter = "all";
 let clockSkew = 0;
 let formDirty = false;
 let busy = false;
@@ -336,11 +374,7 @@ function render() {
           <div class="bar"><div style="width:${pct}%"></div></div></div>`;
       }).join("");
 
-  // Tamamlananlar
-  $("doneList").innerHTML = done === 0
-    ? `<div class="empty">Henüz yok.</div>`
-    : state.done.slice().reverse().map(g =>
-        `<div class="item"><span class="n">${esc(g.name)}</span><span class="m">${fmtDuration(g.seconds)}</span></div>`).join("");
+  renderPlan(now);
 
   // Kayıt
   const log = $("log");
@@ -350,9 +384,40 @@ function render() {
   if (atBottom) log.scrollTop = log.scrollHeight;
 }
 
+function renderPlan(now) {
+  const doneById = new Map(state.done.map(g => [g.id, g]));
+  const activeById = new Map(state.active.map(g => [g.id, g]));
+  const running = state.status === "running";
+  const items = plan.items;
+
+  $("planCount").textContent = items.length ? `· ${items.length}` : "";
+  $("planBtn").textContent = items.length ? "Bekleyenleri değiştir" : "Listeyi oluştur";
+  $("planBtn").disabled = running || busy;
+
+  if (items.length === 0) {
+    $("planList").innerHTML = `<div class="empty">Henüz liste yok. "Listeyi oluştur" ile hedef sayı kadar oyun seç ya da direkt Başlat.</div>`;
+    return;
+  }
+  const q = $("planSearch").value.trim().toLocaleLowerCase("tr");
+  const rows = items.map((g, i) => {
+    const st = doneById.has(g.id) ? "done" : activeById.has(g.id) ? "active" : "pending";
+    return { g, i, st };
+  }).filter(r => (planFilter === "all" || r.st === planFilter)
+    && (!q || r.g.name.toLocaleLowerCase("tr").includes(q) || r.g.rel.toLowerCase().includes(q)));
+
+  $("planList").innerHTML = rows.length === 0 ? `<div class="empty">Eşleşen oyun yok.</div>` : rows.map(({ g, i, st }) => {
+    let tag = `<span class="tag">Bekliyor</span><button type="button" class="swap" data-id="${esc(g.id)}" title="Bu oyunu başka bir rastgele oyunla değiştir">Değiştir</button>`;
+    if (st === "done") tag = `<span class="tag done">${fmtDuration(doneById.get(g.id).seconds)}</span>`;
+    if (st === "active") tag = `<span class="tag active">${fmtClock((activeById.get(g.id).end - now) / 1000)} kaldı</span>`;
+    return `<div class="item"><span class="idx">${i + 1}</span>
+      <span class="info"><span class="n">${esc(g.name)}</span><span class="exe">${esc(g.rel || "—")}</span></span>${tag}</div>`;
+  }).join("");
+}
+
 async function poll() {
   try {
     state = await api("/api/state");
+    if (state.planVersion !== plan.version) plan = await api("/api/plan");
     clockSkew = state.now - Date.now();
     if (!busy) showError(state.error);
     render();
@@ -385,6 +450,27 @@ $("startBtn").onclick = () => {
   action("/api/start", v).finally(() => $("startBtn").textContent = "Başlat");
 };
 $("stopBtn").onclick = () => action("/api/stop");
+$("planBtn").onclick = () => {
+  const count = parseInt($("count").value, 10);
+  if (!Number.isFinite(count)) return showError("Hedef oyun sayısını gir.");
+  const reroll = plan.items.length > 0;
+  if (reroll && !confirm("Bekleyen oyunlar yenileriyle değiştirilsin mi? Tamamlananlar kalır.")) return;
+  const label = $("planBtn").textContent;
+  $("planBtn").textContent = "Hazırlanıyor…";
+  action(reroll ? "/api/plan/reroll" : "/api/plan/create", { count }).finally(() => $("planBtn").textContent = label);
+};
+$("planFilter").addEventListener("click", e => {
+  const f = e.target.dataset?.f;
+  if (!f) return;
+  planFilter = f;
+  [...$("planFilter").children].forEach(b => b.classList.toggle("on", b.dataset.f === f));
+  render();
+});
+$("planSearch").addEventListener("input", render);
+$("planList").addEventListener("click", e => {
+  const id = e.target.closest?.(".swap")?.dataset.id;
+  if (id && !busy) action("/api/plan/replace", { id });
+});
 $("cleanupBtn").onclick = () => action("/api/cleanup");
 $("resetBtn").onclick = () => {
   if (confirm("Tamamlanan oyun kaydı silinsin mi? Discord'daki rozet ilerlemen etkilenmez.")) action("/api/reset");

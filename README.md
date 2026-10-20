@@ -29,7 +29,19 @@ Panelde:
 
 Varsayılan ayarlar: hedef 250 oyun, oyun başına 46–71 dk, aynı anda 1 oyun. Bu ≈ 245 saat ≈ 10 gün kesintisiz demek; kapatıp istediğin zaman kaldığı yerden devam edebilirsin.
 
-Hangi oyunların oynandığı `%LOCALAPPDATA%\DiscordOyunRozeti\progress.json`'da tutulur (oyun id'si, adı, süresi, bitiş zamanı) ve panelde "Tamamlanan oyunlar" listesinde görünür. Aynı oyun asla ikinci kez seçilmez.
+### Oyun listesi
+
+250 oyun bir kez seçilir ve `%LOCALAPPDATA%\DiscordOyunRozeti\plan.json`'a kaydedilir; script bu listeyi sırayla oynar. Panelin **Oyun listesi** kartında hepsi görünür (Tümü / Bekleyen / Oynanıyor / Tamamlanan filtresi ve arama ile).
+
+- **Değiştir** (satırın üstüne gelince): bekleyen tek bir oyunu başka rastgele bir oyunla değiştirir.
+- **Bekleyenleri değiştir**: bekleyen tüm oyunları yeniden seçer; tamamlananlar kalır.
+- Profilde görüneceği için müstehcen/rahatsız edici isimli oyunlar bir kelime filtresiyle elenir. Filtre her şeyi yakalamaz (özellikle Latin alfabesi dışındaki isimler), listeye bir göz at.
+
+Tamamlananlar `progress.json`'da tutulur (oyun id'si, adı, süresi, bitiş zamanı). Aynı oyun asla ikinci kez oynanmaz.
+
+Oyun listesi önce Discord'dan, erişilemezse her gün güncellenen [teyd/dgdb](https://github.com/teyd/dgdb) kopyasından (jsDelivr) indirilir.
+
+Bilgisayar uyursa (iki kontrol arası 60 sn'den uzun boşluk), açık oyunun süresi o kadar uzatılır; uykuda geçen süre oynanmış sayılmaz.
 
 **Aynı anda birden fazla oyun:** Discord'un aynı anda açık oyunları Game Variety için ayrı ayrı saydığını doğrulayan bir kaynak yok; Game Time'da süreler toplanıyor mu da belli değil. Bu yüzden varsayılan 1. Denemek istersen birkaç oyunu 2'şerli çalıştırıp rozet ilerlemesinin (1–2 gün gecikebilir) iki oyun birden artıp artmadığına bak.
 
