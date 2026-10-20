@@ -2,7 +2,7 @@
 
 Discord'un deneysel **Game Variety** rozeti (Sampler → Universalist, 100+ farklı oyun) için, Discord'un algılanabilir oyun listesinden seçilen oyunların exe adını taşıyan sahte programları sırayla çalıştıran bir PowerShell scripti. Kontrol paneli tarayıcıda açılır.
 
-Discord istemcisine kod enjekte etmez, sahte API isteği göndermez. Discord masaüstü uygulaması bu programları kendi normal oyun algılamasıyla "Oynuyor" olarak görür. Her oyun rastgele bir süre (varsayılan 5–15 dk) açık kaldığı için **Game Time** rozetine de oynama süresi eklenir.
+Discord istemcisine kod enjekte etmez, sahte API isteği göndermez. Discord masaüstü uygulaması bu programları kendi normal oyun algılamasıyla "Oynuyor" olarak görür. Her oyun rastgele bir süre (varsayılan 46–71 dk) açık kaldığı için **Game Time** rozetine de oynama süresi eklenir.
 
 > ⚠️ Bu yöntem Discord Kullanım Koşulları'na aykırıdır. Riski düşük olsa da sıfır değildir; sorumluluk kullanıcıya aittir.
 
@@ -27,7 +27,7 @@ Panelde:
 - şu an açık oyunlar ve geri sayımları,
 - tamamlanan oyunlar ve kayıt.
 
-Varsayılan ayarlarla (110 oyun, 5–15 dk, aynı anda 1) yaklaşık 18–19 saat sürer. Kapatıp ertesi gün devam edebilirsin.
+Varsayılan ayarlar: hedef 200–250 arası rastgele (ilk çalıştırmada seçilir, panelden değiştirilebilir), oyun başına 46–71 dk, aynı anda 1 oyun. Örneğin 225 oyun ≈ 220 saat ≈ 9 gün kesintisiz demek; kapatıp istediğin zaman kaldığı yerden devam edebilirsin.
 
 **Aynı anda birden fazla oyun:** Discord'un aynı anda açık oyunları Game Variety için ayrı ayrı saydığını doğrulayan bir kaynak yok; Game Time'da süreler toplanıyor mu da belli değil. Bu yüzden varsayılan 1. Denemek istersen birkaç oyunu 2'şerli çalıştırıp rozet ilerlemesinin (1–2 gün gecikebilir) iki oyun birden artıp artmadığına bak.
 

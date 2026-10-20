@@ -57,8 +57,9 @@ Add-Type -AssemblyName System.Web.Extensions
 
 $State = @{
     Status         = 'idle'   # idle | running | done
-    # Ayni anda birden fazla oyunun ayri sayildigi dogrulanmadi; varsayilan tek oyun
-    Settings       = @{ Count = 110; MinMinutes = 5; MaxMinutes = 15; Concurrent = 1 }
+    # Ayni anda birden fazla oyunun ayri sayildigi dogrulanmadi; varsayilan tek oyun.
+    # Hedef 200-250 arasi rastgele; ilk calistirmada secilip settings.json'a kaydedilir.
+    Settings       = @{ Count = (Get-Random -Minimum 200 -Maximum 251); MinMinutes = 46; MaxMinutes = 71; Concurrent = 1 }
     Done           = New-Object System.Collections.ArrayList
     DoneIds        = New-Object 'System.Collections.Generic.HashSet[string]'
     Active         = New-Object System.Collections.ArrayList
@@ -96,6 +97,8 @@ function Import-Saved {
         foreach ($k in @('Count','MinMinutes','MaxMinutes','Concurrent')) {
             if ($s.ContainsKey($k)) { $State.Settings[$k] = [int]$s[$k] }
         }
+    } else {
+        [IO.File]::WriteAllText($SettingsPath, (ConvertTo-Json -InputObject $State.Settings -Compress))
     }
     if (Test-Path $ProgressPath) {
         foreach ($item in @(Read-Json $ProgressPath)) {
