@@ -45,6 +45,13 @@ $GenericNames = @(
 
 # Profilde "Oynuyor" olarak gorunecegi icin mustehcen/rahatsiz edici adli oyunlar secilmez
 $BlockedNamePattern = '(?i)\b(sex|hentai|nsfw|porn|lust|cuckold|genital|negligee|nude|naked|erotic|strip|boob|breeder|hitler|nazi|milf|harem|lewd|futa|yaoi|fetish|bdsm|onlyfans|waifu|succubus|brothel|incest|eros\b|taboo|slave|f\*ck|fuck|whoopass)'
+# Latin alfabesi disinda harf iceren adlar (Cince, Japonca, Korece, Kiril...) da elenir;
+# ne oldugu anlasilmayan bir oyun profilde gorunmesin. Aksanli Latin harfler serbest.
+$NonLatinPattern = '(?=\p{L})[^\u0000-ɏḀ-ỿ]'
+
+function Test-BlockedName([string]$name) {
+    return ($name -match $BlockedNamePattern -or $name -match $NonLatinPattern)
+}
 
 function Stop-AllFakeGames {
     Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($GamesDir, 'OrdinalIgnoreCase') } |
@@ -155,7 +162,7 @@ function Update-Plan([int]$count, [switch]$Reroll) {
     if (-not $Reroll) {
         foreach ($p in $State.Plan) {
             if ($items.Count -ge $count) { break }
-            if ($p.Name -match $BlockedNamePattern) { continue }
+            if (Test-BlockedName $p.Name) { continue }
             if ($ids.Add($p.Id)) { [void]$items.Add($p) }
         }
     }
@@ -237,7 +244,7 @@ function Get-Candidates($apps) {
         $exe = @($app['executables'] | Where-Object {
             $_['os'] -eq 'win32' -and -not $_['is_launcher'] -and ([string]$_['name']) -like '*.exe'
         }) | Select-Object -First 1
-        if (-not $exe -or ([string]$app['name']) -match $BlockedNamePattern) { continue }
+        if (-not $exe -or (Test-BlockedName ([string]$app['name']))) { continue }
         $rel = ([string]$exe['name']).TrimStart('>').Replace('/', '\').Trim('\')
         if ($rel -match '[:*?"<>|]' -or $rel.Contains('..')) { continue }
         [pscustomobject]@{
