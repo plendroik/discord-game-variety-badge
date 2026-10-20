@@ -63,4 +63,10 @@ Bilgisayar uyursa (iki kontrol arası 60 sn'den uzun boşluk), açık oyunun sü
 4. Her oyun için bu programı Discord'un beklediği klasör yolu ve exe adıyla kopyalar, rastgele süre çalıştırıp kapatır.
 5. Discord kapanırsa yeni oyun başlatmaz, Discord açılınca devam eder.
 
+## Güvenlik
+
 Panel sadece `localhost`'ta dinler; POST istekleri özel bir başlık ister, böylece başka siteler panele istek gönderemez.
+
+## Geliştirici
+
+**plendroik** · Discord: `plendroik`
