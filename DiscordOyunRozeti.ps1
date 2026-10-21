@@ -47,7 +47,7 @@ $GenericNames = @(
 $BlockedNamePattern = '(?i)\b(sex|hentai|nsfw|porn|lust|cuckold|genital|negligee|nude|naked|erotic|strip|boob|breeder|hitler|nazi|milf|harem|lewd|futa|yaoi|fetish|bdsm|onlyfans|waifu|succubus|brothel|incest|eros\b|taboo|slave|f\*ck|fuck|whoopass)'
 # Latin alfabesi disinda harf iceren adlar (Cince, Japonca, Korece, Kiril...) da elenir;
 # ne oldugu anlasilmayan bir oyun profilde gorunmesin. Aksanli Latin harfler serbest.
-$NonLatinPattern = '(?=\p{L})[^\u0000-ɏḀ-ỿ]'
+$NonLatinPattern = '(?=\p{L})[^\u0000-\u024F\u1E00-\u1EFF]'
 
 function Test-BlockedName([string]$name) {
     return ($name -match $BlockedNamePattern -or $name -match $NonLatinPattern)
